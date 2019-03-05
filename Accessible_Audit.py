@@ -14,6 +14,8 @@ tkinter_window_height = 480
 file_path_audit_directory = "/var/log/audit/"
 file_path_network = file_path_audit_directory + "network"
 file_path_password = file_path_audit_directory + "password_suspect"
+file_path_services = file_path_audit_directory + "services"
+file_path_password_policy = file_path_audit_directory + "password_policy"
 
 
 # Run a bash command as if it were in the User's shell.
@@ -97,7 +99,7 @@ def perform_network_scan():
 def perform_password_scan():
 
     # Bash command
-    command_get_suspect_password_files = 'grep --exclude-dir=".*" --exclude={"*.py",".*"} -Ilrn "/home" -e "password"'
+    command_get_suspect_password_files = 'grep --exclude-dir=".*" --exclude={"*.py",".*"} -Ilrn "/home/$(logname)" -e "password"'
 
     # Run bash command and parse output.
     suspect_files = run_bash_command(command_get_suspect_password_files)
@@ -109,16 +111,68 @@ def perform_password_scan():
     export_to_json(file_path_password, json_metadata, suspect_files)
 
 
+# Gather information about running services.
+def perform_service_scan():
+
+    # Bash command
+    command_get_unknown_services = 'sudo service --status-all 2>&1'
+
+    # Run bash command and parse output
+    services = run_bash_command(command_get_unknown_services)
+
+    # Clean up the output of the bash command by constructing a new list, parsing the raw bash output, and passing it
+    # to the new list.
+    services_json_ready = []
+    for service in services:
+        if service != '':
+            services_json_ready.append(service.lstrip(" [ ").replace(" ] ", ""))
+
+    # Prepare the JSON Metadata for export.
+    json_metadata = ["status", "service"]
+
+    # Write data to file
+    export_to_json(file_path_services, json_metadata, services_json_ready)
+
+
+def perform_password_complexity_scan():
+
+    # Bash command
+    command_get_password_expiry = 'sudo chage -l $(logname)'
+
+    # Run bash command and parse output
+    password_expiry_data = run_bash_command(command_get_password_expiry)
+    json_metadata = []
+    password_policy_data = []
+
+    # Prepare data for JSON export
+    for element in password_expiry_data:
+        if element != '':
+            current_element = element.replace("\\t", "").split(": ")
+            json_metadata.append(current_element[0])
+            password_policy_data.append(current_element[1].replace(",", "").replace(" ", "_"))
+
+    # Write data to file
+    export_to_json(file_path_password_policy, json_metadata, password_policy_data)
+
+
+
+
 def begin_audit():
 
     # Make sure a directory exists,
-    run_bash_command("mkdir -p /var/log/audit")
+    run_bash_command("sudo mkdir -p /var/log/audit")
 
     # Gather information about listening network sockets on the machine.
     perform_network_scan()
 
     # Scan the home directory for files containing password information.
     perform_password_scan()
+
+    # Gather information about running services.
+    perform_service_scan()
+
+    # Gather password complexity and expiration data
+    perform_password_complexity_scan()
 
     # TODO Add the rest of the necessary code here.
     return
