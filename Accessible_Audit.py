@@ -16,6 +16,7 @@ file_path_network = file_path_audit_directory + "network"
 file_path_password = file_path_audit_directory + "password_suspect"
 file_path_services = file_path_audit_directory + "services"
 file_path_password_policy = file_path_audit_directory + "password_policy"
+file_path_network_card = file_path_audit_directory + "network_card"
 
 
 # Run a bash command as if it were in the User's shell.
@@ -99,7 +100,8 @@ def perform_network_scan():
 def perform_password_scan():
 
     # Bash command
-    command_get_suspect_password_files = 'grep --exclude-dir=".*" --exclude={"*.py",".*"} -Ilrn "/home/$(logname)" -e "password"'
+    command_get_suspect_password_files = 'grep --exclude-dir=".*" --exclude={"*.py",".*"} -Ilrn "/home/$(logname)" -e '\
+                                         '"password" '
 
     # Run bash command and parse output.
     suspect_files = run_bash_command(command_get_suspect_password_files)
@@ -134,7 +136,8 @@ def perform_service_scan():
     export_to_json(file_path_services, json_metadata, services_json_ready)
 
 
-def perform_password_complexity_scan():
+# Gather password expiry information
+def perform_password_expiry_scan():
 
     # Bash command
     command_get_password_expiry = 'sudo chage -l $(logname)'
@@ -155,6 +158,21 @@ def perform_password_complexity_scan():
     export_to_json(file_path_password_policy, json_metadata, password_policy_data)
 
 
+# Gather NIC information
+def perform_network_card_gather():
+
+    # Bash command
+    command_get_network_card_data = run_bash_command("hostname -I")
+
+    # Split the addresses into iterable elements
+    ip_addresses = []
+    for element in list(filter(None, command_get_network_card_data)):
+        ip_addresses = element.split()
+
+    # Gather the IP addresses from bash command.
+    json_header = ["IP"]
+
+    export_to_json(file_path_network_card,json_header,ip_addresses)
 
 
 def begin_audit():
@@ -171,8 +189,11 @@ def begin_audit():
     # Gather information about running services.
     perform_service_scan()
 
-    # Gather password complexity and expiration data
-    perform_password_complexity_scan()
+    # Gather password expiration data
+    perform_password_expiry_scan()
+
+    # Ensure that user is using an IP address in private network space.
+    perform_network_card_gather()
 
     # TODO Add the rest of the necessary code here.
     return
