@@ -48,6 +48,23 @@ def export_to_json(filename, metadata, dataset):
     file.close()
 
 
+# Output supplied dictionary to a text file in JSON format
+def export_to_json2(filename, dictionary):
+
+    # Open file for writing
+    file = open(filename, "w")
+
+    # Insert an open bracket, so the data can be parse as a list
+    file.writelines("[\n")
+    file.writelines(json.dumps(dictionary, indent=4))
+
+    # Insert the closing bracket.
+    file.writelines("\n]\n")
+
+    # Close the file.
+    file.close()
+
+
 def build_gui():
 
     # Build Window
@@ -143,19 +160,18 @@ def perform_password_expiry_scan():
     command_get_password_expiry = 'sudo chage -l $(logname)'
 
     # Run bash command and parse output
-    password_expiry_data = run_bash_command(command_get_password_expiry)
-    json_metadata = []
-    password_policy_data = []
+    password_expiry = run_bash_command(command_get_password_expiry)
 
-    # Prepare data for JSON export
-    for element in password_expiry_data:
+    # Construct new array and clean the data into a usable format
+    password_expiry_header = []
+    password_expiry_data = []
+    for element in password_expiry:
         if element != '':
-            current_element = element.replace("\\t", "").split(": ")
-            json_metadata.append(current_element[0])
-            password_policy_data.append(current_element[1].replace(",", "").replace(" ", "_"))
+            current_element = element.split(": ")
+            password_expiry_header.append(current_element[0].replace(" ","_").replace("\\t", ""))
+            password_expiry_data.append(current_element[1].replace(" ", "_").replace(",", ""))
 
-    # Write data to file
-    export_to_json(file_path_password_policy, json_metadata, password_policy_data)
+    export_to_json2(file_path_password_policy, dict(zip(password_expiry_header, password_expiry_data)))
 
 
 # Gather NIC information
