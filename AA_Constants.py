@@ -1,0 +1,12 @@
+audit_type_network = "network"
+audit_type_password = "password_suspect"
+audit_type_services = "services"
+audit_type_password_policy = "password_policy"
+audit_type_network_card = "network_card"
+
+file_path_audit_directory = "/var/log/audit/"
+file_path_network = file_path_audit_directory + "network"
+file_path_password = file_path_audit_directory + "password_suspect"
+file_path_services = file_path_audit_directory + "services"
+file_path_password_policy = file_path_audit_directory + "password_policy"
+file_path_network_card = file_path_audit_directory + "network_card"

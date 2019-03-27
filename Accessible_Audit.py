@@ -7,17 +7,12 @@ from tkinter import *
 from tkinter import ttk
 import subprocess
 import json
+from AA_Constants import *
+from AA_Reports import generate_reports
 
 # GLOBAL VARIABLES
 tkinter_window_width = 640
 tkinter_window_height = 480
-file_path_audit_directory = "/var/log/audit/"
-file_path_network = file_path_audit_directory + "network"
-file_path_password = file_path_audit_directory + "password_suspect"
-file_path_services = file_path_audit_directory + "services"
-file_path_password_policy = file_path_audit_directory + "password_policy"
-file_path_network_card = file_path_audit_directory + "network_card"
-
 
 # Run a bash command as if it were in the User's shell.
 # Return: A string with the bash output.
@@ -83,7 +78,7 @@ def build_gui():
     label_welcome_message.place(relx=0.5, rely=0.35, anchor=CENTER)
 
     # Buttons
-    button_run_audit = Button(root, text='Audit my system!', command=lambda: begin_audit())
+    button_run_audit = Button(root, text='Audit my system!', command=lambda: run_audit())
     button_run_audit.place(relx=0.5, rely=0.65, anchor=CENTER)
 
     # Progress Bar
@@ -112,6 +107,8 @@ def perform_network_scan():
     # Write data to file.
     export_to_json(file_path_network, json_metadata, network_output)
 
+    return network_output
+
 
 # Gather information about password files that could be on the user's system.
 def perform_password_scan():
@@ -128,6 +125,8 @@ def perform_password_scan():
 
     # Write data to file.
     export_to_json(file_path_password, json_metadata, suspect_files)
+
+    return suspect_files
 
 
 # Gather information about running services.
@@ -152,6 +151,8 @@ def perform_service_scan():
     # Write data to file
     export_to_json(file_path_services, json_metadata, services_json_ready)
 
+    return services_json_ready
+
 
 # Gather password expiry information
 def perform_password_expiry_scan():
@@ -173,6 +174,8 @@ def perform_password_expiry_scan():
 
     export_to_json2(file_path_password_policy, dict(zip(password_expiry_header, password_expiry_data)))
 
+    return (password_expiry_header, password_expiry_data)
+
 
 # Gather NIC information
 def perform_network_card_gather():
@@ -190,30 +193,31 @@ def perform_network_card_gather():
 
     export_to_json(file_path_network_card,json_header,ip_addresses)
 
+    return ip_addresses
 
-def begin_audit():
+
+def run_audit():
 
     # Make sure a directory exists,
     run_bash_command("sudo mkdir -p /var/log/audit")
 
     # Gather information about listening network sockets on the machine.
-    perform_network_scan()
+    network_scan_result = perform_network_scan()
 
     # Scan the home directory for files containing password information.
-    perform_password_scan()
+    password_scan_result = perform_password_scan()
 
     # Gather information about running services.
-    perform_service_scan()
+    service_scan_result = perform_service_scan()
 
     # Gather password expiration data
-    perform_password_expiry_scan()
+    password_expiry_scan_result = perform_password_expiry_scan()
 
     # Ensure that user is using an IP address in private network space.
-    perform_network_card_gather()
+    network_card_result = perform_network_card_gather()
 
-    # TODO Add the rest of the necessary code here.
-    return
-
+    # Generate a report with the results.
+    generate_reports(file_path_audit_directory, network_scan_result, password_scan_result, service_scan_result, password_expiry_scan_result, network_card_gather_result)
 
 
 def main():
