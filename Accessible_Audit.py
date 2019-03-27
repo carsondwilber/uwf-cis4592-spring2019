@@ -8,7 +8,7 @@ from tkinter import ttk
 import subprocess
 import json
 from AA_Constants import *
-from AA_Reports import generate_reports
+from AA_Reports import generate_report
 
 # GLOBAL VARIABLES
 tkinter_window_width = 640
@@ -64,7 +64,7 @@ def build_gui():
 
     # Build Window
     root = Tk()
-    root.geometry(f"{tkinter_window_width}x{tkinter_window_height}")
+    root.geometry("%dx%d" % (tkinter_window_width, tkinter_window_height))
     root.title("Accessible Audit")
 
     # Create Main Page
@@ -214,10 +214,16 @@ def run_audit():
     password_expiry_scan_result = perform_password_expiry_scan()
 
     # Ensure that user is using an IP address in private network space.
-    network_card_result = perform_network_card_gather()
+    network_card_gather_result = perform_network_card_gather()
 
     # Generate a report with the results.
-    generate_reports(file_path_audit_directory, network_scan_result, password_scan_result, service_scan_result, password_expiry_scan_result, network_card_gather_result)
+    generate_report(file_path_audit_directory, **{
+            audit_type_network : network_scan_result, 
+            audit_type_password : password_scan_result, 
+            audit_type_services : service_scan_result, 
+            audit_type_password_policy : password_expiry_scan_result, 
+            audit_type_network_card : network_card_gather_result
+        })
 
 
 def main():
