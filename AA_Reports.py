@@ -1,23 +1,32 @@
 import os
 import AA_Constants
 
-default_scripts = ["jquery.js"]
+default_scripts = []
 default_styles = []
 default_metas = []
 
 class _AA_Reports_Internal:
     _audit_tag = "div"
-    _audit_classes = "audit-section"
+    _audit_classes = ["audit-section"]
 
     _result_tag = "div"
-    _result_classes = "script-result"
+    _result_classes = ["script-result"]
     
     _raw_tag = "div"
-    _raw_classes = "raw-output"
+    _raw_classes = ["raw-output"]
+
+    _header_tag = "div"
+    _header_classes = ["audit-header"]
+
+    _title_tag = "h3"
+    _title_classes = ["audit-title"]
+
+    _path_tag = "p"
+    _path_classes = ["audit-path"]
 
     @staticmethod
     def _write_script(fp, src):
-        fp.write('\t\t<script type="text/javascript" src="' + src + '" />\n')
+        fp.write('\t\t<script type="text/javascript" src="' + src + '"></script>\n')
 
     @staticmethod
     def _write_scripts(fp, srcs):
@@ -100,7 +109,84 @@ class _AA_Reports_Internal:
         _AA_Reports_Internal._end_document(fp)
 
     @staticmethod
-    def _generate_report(path, depends = {}, **kwargs):
+    def _begin_tag(fp, tag):
+        fp.write('<' + tag + ' ')
+
+    @staticmethod
+    def _write_classes(fp, classes):
+        fp.write('class="')
+        for clazz in classes:
+            fp.write(clazz + ' ')
+        fp.write('" ')
+
+    @staticmethod
+    def _end_tag(fp):
+        fp.write('/>\n')
+
+    @staticmethod
+    def _close_tag(fp, tag):
+        fp.write('</' + tag + '>\n')
+
+    @staticmethod
+    def _write_inline_tag(fp, tag, classes = []):
+        _AA_Reports_Internal._begin_tag(fp, tag)
+        _AA_Reports_Internal._write_classes(fp, classes)
+        _AA_Reports_Internal._end_tag(fp)
+
+    @staticmethod
+    def _write_title(fp, title):
+        _AA_Reports_Internal._write_inline_tag(fp, _AA_Reports_Internal._title_tag, _AA_Reports_Internal._title_classes)
+
+        fp.write(title)
+
+        _AA_Reports_Internal._close_tag(fp, _AA_Reports_Internal._title_tag)
+
+    @staticmethod
+    def _write_path(fp, path):
+        _AA_Reports_Internal._write_inline_tag(fp, _AA_Reports_Internal._path_tag, _AA_Reports_Internal._path_classes)
+
+        fp.write(path)
+
+        _AA_Reports_Internal._close_tag(fp, _AA_Reports_Internal._path_tag)
+
+    @staticmethod
+    def _write_section_header(fp, title, path):
+        _AA_Reports_Internal._write_inline_tag(fp, _AA_Reports_Internal._header_tag, _AA_Reports_Internal._header_classes)
+
+        _AA_Reports_Internal._write_title(fp, title)
+        _AA_Reports_Internal._write_path(fp, path)
+
+        _AA_Reports_Internal._close_tag(fp, _AA_Reports_Internal._header_tag)
+
+    @staticmethod
+    def _write_result(fp, result):
+        _AA_Reports_Internal._write_inline_tag(fp, _AA_Reports_Internal._result_tag, _AA_Reports_Internal._result_classes)
+        
+        fp.write(result)
+
+        _AA_Reports_Internal._close_tag(fp, _AA_Reports_Internal._result_tag)
+
+    @staticmethod
+    def _write_raw(fp, raw):
+        _AA_Reports_Internal._write_inline_tag(fp, _AA_Reports_Internal._raw_tag, _AA_Reports_Internal._raw_classes)
+        
+        for line in raw:
+            fp.write(line + '<br/>')
+
+        _AA_Reports_Internal._close_tag(fp, _AA_Reports_Internal._raw_tag)
+
+    @staticmethod
+    def _write_section(fp, title, path, result, raw):
+        _AA_Reports_Internal._write_inline_tag(fp, _AA_Reports_Internal._audit_tag, _AA_Reports_Internal._audit_classes)
+        
+        _AA_Reports_Internal._write_section_header(fp, title, path)
+        _AA_Reports_Internal._write_result(fp, result)
+        _AA_Reports_Internal._write_raw(fp, raw)
+
+        _AA_Reports_Internal._close_tag(fp, _AA_Reports_Internal._audit_tag)
+
+    @staticmethod
+    def _generate_report(path = AA_Constants.file_path_audit_directory, depends = {}, **kwargs):
         fp = open(os.path.join(path, "report.html"), "w+")
 
         depends_scripts = default_scripts
@@ -119,23 +205,25 @@ class _AA_Reports_Internal:
         _AA_Reports_Internal._begin_report(fp, scripts = depends_scripts, styles = depends_styles, metas = depends_metas)
         
         for audit, data in kwargs.items():
+            raw = data
+            result = ""
+
+            title = "(Unknown Audit)"
+
             if audit == AA_Constants.audit_type_network:
-                # TODO: Generate HTML5/CSS3/JavaScript report for network.
-                assert(True)
+                title = "Network Scan"
             elif audit == AA_Constants.audit_type_password:
-                # TODO: Generate HTML5/CSS3/JavaScript report for password.
-                assert(True)
+                title = "Password Storage"
             elif audit == AA_Constants.audit_type_services:
-                # TODO: Generate HTML5/CSS3/JavaScript report for services. 
-                assert(True)
+                title = "Service Scan"
             elif audit == AA_Constants.audit_type_password_policy:
-                # TODO: Generate HTML5/CSS3/JavaScript report for password_policy.
-                assert(True)
+                title = "Password Policy"
             elif audit == AA_Constants.audit_type_network_card:
-                # TODO: Generate HTML5/CSS3/JavaScript report for network_card.
-                assert(True)
+                title = "Network Card"
+
+            _AA_Reports_Internal._write_section(fp, title, os.path.join(path, audit), result, raw)
 
         _AA_Reports_Internal._end_report(fp)
 
-def generate_report(path, **kwargs):
+def generate_report(path = AA_Constants.file_path_audit_directory, **kwargs):
         _AA_Reports_Internal._generate_report(path, **kwargs)

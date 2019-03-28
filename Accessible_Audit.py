@@ -174,7 +174,7 @@ def perform_password_expiry_scan():
 
     export_to_json2(file_path_password_policy, dict(zip(password_expiry_header, password_expiry_data)))
 
-    return (password_expiry_header, password_expiry_data)
+    return password_expiry_data
 
 
 # Gather NIC information
