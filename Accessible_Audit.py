@@ -2,17 +2,19 @@
 # Author: Thomas Thibaut, Isaac Beagle, Carson Wilber
 # File: Accessible_Audit.py
 # Desc: Perform a system audit
-
+from time import sleep
 from tkinter import *
 from tkinter import ttk
 import subprocess
 import json
+import webbrowser
 from AA_Constants import *
 from AA_Reports import generate_report
 
 # GLOBAL VARIABLES
 tkinter_window_width = 640
 tkinter_window_height = 480
+
 
 # Run a bash command as if it were in the User's shell.
 # Return: A string with the bash output.
@@ -23,7 +25,6 @@ def run_bash_command(command):
 
 # Output supplied data to a text file in JSON format.
 def export_to_json(filename, metadata, dataset):
-
     # Open file for writing
     file = open(filename, "w")
 
@@ -45,7 +46,6 @@ def export_to_json(filename, metadata, dataset):
 
 # Output supplied dictionary to a text file in JSON format
 def export_to_json2(filename, dictionary):
-
     # Open file for writing
     file = open(filename, "w")
 
@@ -60,8 +60,31 @@ def export_to_json2(filename, dictionary):
     file.close()
 
 
-def build_gui():
+# Display a popup to the user
+def build_popup(title, message):
 
+    # Create a popup window object
+    message_window = Toplevel()
+    message_window.geometry("%dx%d" % (tkinter_window_width / 1.5, tkinter_window_height / 1.5))
+
+    # Assign title to window
+    message_window.title = title
+
+    # Assign the message to a label object
+    message_label = Label(master=message_window, text=message)
+
+    # Create a button that closes the window
+    message_button = Button(master=message_window, text="Close", command=lambda: message_window.destroy())
+
+    # Place elements
+    message_label.place(relx=0.5, rely=0.30, anchor=CENTER)
+    message_button.place(relx=0.5, rely=0.65, anchor=CENTER)
+
+    # Display Window
+    message_window.mainloop()
+
+
+def build_gui():
     # Build Window
     root = Tk()
     root.geometry("%dx%d" % (tkinter_window_width, tkinter_window_height))
@@ -78,15 +101,8 @@ def build_gui():
     label_welcome_message.place(relx=0.5, rely=0.35, anchor=CENTER)
 
     # Buttons
-    button_run_audit = Button(root, text='Audit my system!', command=lambda: run_audit())
+    button_run_audit = Button(root, text='Audit my system!', command=lambda: run_audit(root))
     button_run_audit.place(relx=0.5, rely=0.65, anchor=CENTER)
-
-    # Progress Bar
-    progress_bar = ttk.Progressbar()
-    progress_bar.place(relx=0.5, rely=0.85, anchor=CENTER)
-    progress_bar.place_forget()
-
-    # TODO Figure out how to make a progress bar work.
 
     # Display Window
     root.mainloop()
@@ -94,7 +110,6 @@ def build_gui():
 
 # Gather network information about open/listening ports on the system.
 def perform_network_scan():
-
     # Bash Commands
     command_get_network_information = "lsof -i | grep LISTEN"
 
@@ -112,9 +127,8 @@ def perform_network_scan():
 
 # Gather information about password files that could be on the user's system.
 def perform_password_scan():
-
     # Bash command
-    command_get_suspect_password_files = 'grep --exclude-dir=".*" --exclude={"*.py",".*"} -Ilrn "/home/$(logname)" -e '\
+    command_get_suspect_password_files = 'grep --exclude-dir=".*" --exclude={"*.py",".*"} -Ilrn "/home/$(logname)" -e ' \
                                          '"password" '
 
     # Run bash command and parse output.
@@ -131,7 +145,6 @@ def perform_password_scan():
 
 # Gather information about running services.
 def perform_service_scan():
-
     # Bash command
     command_get_unknown_services = 'sudo service --status-all 2>&1'
 
@@ -156,7 +169,6 @@ def perform_service_scan():
 
 # Gather password expiry information
 def perform_password_expiry_scan():
-
     # Bash command
     command_get_password_expiry = 'sudo chage -l $(logname)'
 
@@ -169,7 +181,7 @@ def perform_password_expiry_scan():
     for element in password_expiry:
         if element != '':
             current_element = element.split(": ")
-            password_expiry_header.append(current_element[0].replace(" ","_").replace("\\t", ""))
+            password_expiry_header.append(current_element[0].replace(" ", "_").replace("\\t", ""))
             password_expiry_data.append(current_element[1].replace(" ", "_").replace(",", ""))
 
     export_to_json2(file_path_password_policy, dict(zip(password_expiry_header, password_expiry_data)))
@@ -179,7 +191,6 @@ def perform_password_expiry_scan():
 
 # Gather NIC information
 def perform_network_card_gather():
-
     # Bash command
     command_get_network_card_data = run_bash_command("hostname -I")
 
@@ -191,12 +202,16 @@ def perform_network_card_gather():
     # Gather the IP addresses from bash command.
     json_header = ["IP"]
 
-    export_to_json(file_path_network_card,json_header,ip_addresses)
+    export_to_json(file_path_network_card, json_header, ip_addresses)
 
     return ip_addresses
 
 
-def run_audit():
+def run_audit(root):
+    # Display message when starting scan
+    label_loading = Label(text="Scan is running. Stay tuned!")
+    label_loading.place(relx=0.5, rely=0.80, anchor=CENTER)
+    root.update()
 
     # Make sure a directory exists,
     run_bash_command("sudo mkdir -p /var/log/audit")
@@ -218,13 +233,23 @@ def run_audit():
 
     # Generate a report with the results.
     generate_report(file_path_audit_directory, **{
-            audit_type_network : network_scan_result, 
-            audit_type_password : password_scan_result, 
-            audit_type_services : service_scan_result, 
-            audit_type_password_policy : password_expiry_scan_result, 
-            audit_type_network_card : network_card_gather_result
-        })
+        audit_type_network: network_scan_result,
+        audit_type_password: password_scan_result,
+        audit_type_services: service_scan_result,
+        audit_type_password_policy: password_expiry_scan_result,
+        audit_type_network_card: network_card_gather_result
+    })
 
+    # Display message when scan is complete!
+    label_loading.place_forget()
+    label_loading = Label(text="Scan complete!")
+    label_loading.place(relx=0.5, rely=0.80, anchor=CENTER)
+    root.update()
+
+    # Display message when scan is complete.
+    score_report_title = "Score Report"
+    score_report_message = "Your overall security score is:\n\n\n\n\n\n\nFor more info, view the full report on your desktop."
+    build_popup(score_report_title, score_report_message)
 
 def main():
     build_gui()
