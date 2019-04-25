@@ -1,6 +1,8 @@
 import os
 import AA_Constants
 
+from AA_FileIO import *
+
 default_scripts = []
 default_styles = []
 default_metas = []
@@ -205,19 +207,42 @@ class _AA_Reports_Internal:
         _AA_Reports_Internal._begin_report(fp, scripts = depends_scripts, styles = depends_styles, metas = depends_metas)
         
         for audit, data in kwargs.items():
-            raw = data
+            raw, path = data
+            jdata = load_json_file(path)
             result = ""
 
             title = "(Unknown Audit)"
 
             if audit == AA_Constants.audit_type_network:
                 title = "Network Scan"
+                result = "When a software 'listens' on your device, it means it is waiting to receive information from another. Listening for anybody to speak to your computer can be dangerous.<br/><br/>"
+                result += "Based on our analysis, you are currently running " + str(sum([len(jdata[r]) for r in jdata])) + " processes that are listening.<br/><br/>"
+                result += "Our recommended course of action is to check if you are running any software that commmunicates on a network. Disable your internet connection and test if your machine continues to operate the same.<br/><br/>"
             elif audit == AA_Constants.audit_type_password:
                 title = "Password Storage"
+                result = "It is never smart to store passwords on a device, and especially without encryption and in an obvious file, like 'passwords.txt.'<br/><br/>"
+                result += "Based on our analysis, your device contains " + str(sum([len(jdata[r]) for r in jdata])) + " files that may store passwords.<br/><br/>"
+                result += "Our recommended course of action is to review the files listed below as soon as possible, and if any contain passwords, move that password to a physical document, delete the file safely, and ensure it is erased from your Trash.<br/><br/>"
             elif audit == AA_Constants.audit_type_services:
                 title = "Service Scan"
+                result = "Malicious software can do work in the background as a service, and well-meaning software can accidentally open you up to vulnerabilities.<br/><br/>"
+                result += "Most legitimate software implements a particular type of 'status check' that returns information about the service. Those that do not may be malicious.<br/><br/>"
+                result += "Based on our analysis, your device contains " + str(sum([sum([1 for s in jdata[r] if s["status"] == "-"]) for r in jdata])) + " services that do not implement status.<br/><br/>"
+                result += "Our recommended course of action is to review the below services and identify any that are unfamiliar. For those that are unfamiliar, perform your own research to determine if they may be malicious. Remove malicious software ASAP.<br/><br/>"
             elif audit == AA_Constants.audit_type_password_policy:
                 title = "Password Policy"
+                result = "Passwords are the keys to the kingdom. If your password is easy to guess, never expires, and has not been changed recently, it is likely weak.<br/><br/>"
+
+                if jdata[path][0]["Password_expires"] == "never":
+                    result += "Based on our analysis, your password never expires.<br/><br/>"
+                    if jdata[path][0]["Maximum_number_of_days_between_password_change"] == "99999":
+                        result += "Your password also never rotates.<br/><br/>"
+                        result += "Our recommended course of action is to enable password expiry and rotation for maximum password security.<br/><br/>"
+                    else:
+                        result += "Our recommended course of action is to enable password expiry for maximum password security.<br/><br/>"
+                elif jdata[path][0]["Maximum_number_of_days_between_password_change"] == "99999":
+                    result += "Based on our analysis, your password never rotates.<br/><br/>"
+                    result += "Our recommended course of action is to enable password rotation for maximum password security.<br/><br/>"
             elif audit == AA_Constants.audit_type_network_card:
                 title = "Network Card"
 

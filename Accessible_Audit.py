@@ -8,6 +8,8 @@ import ipaddress
 import subprocess
 import json
 from AA_Constants import *
+from AA_Scoring import *
+from AA_FileIO import *
 from AA_Reports import generate_report
 
 # GLOBAL VARIABLES
@@ -20,52 +22,6 @@ tkinter_window_height = 480
 def run_bash_command(command):
     return str(subprocess.Popen(["/usr/bin/env", "bash", "-c", command], stdout=subprocess.PIPE).communicate()[0]) \
         .lstrip().rstrip().lstrip("b'").rstrip("\'").split("\\n")
-
-
-# Output supplied data to a text file in JSON (RFC4627) format
-def output_to_json(filename, metadata, dataset):
-    # Open file for writing
-    file = open(filename, "w")
-
-    # If a trailing null was passed with the command output, remove it.
-    if '' in dataset:
-        dataset.remove('')
-
-    # Insert opening brackets and filename
-    file.writelines("{\n\t\"%s\": [" % filename)
-
-    # Iterate through elements...
-    for element in dataset:
-
-        # Create a Dictionary object from the metadata header and line of output and parse the dictionary to JSON
-        output = (json.dumps(dict(zip(metadata, element.split())), indent=4))
-
-        # Append a comma to separate elements, except on the last element.
-        if element != dataset[-1]:
-            output += ","
-
-        # Write the JSON element to the file.
-        file.writelines(output)
-
-    # Insert closing brackets
-    file.writelines("\n]\n}\n")
-    file.close()
-
-
-# Output supplied dictionary to a text file in JSON format
-def export_to_json2(filename, dictionary):
-    # Open file for writing
-    file = open(filename, "w")
-
-    # Insert opening brackets and filename
-    file.writelines("{\n\t\"%s\": [" % filename)
-
-    # Insert an open bracket, so the data can be parse as a list
-    file.writelines(json.dumps(dictionary, indent=4))
-
-    # Insert closing brackets.
-    file.writelines("\n]\n}\n")
-    file.close()
 
 
 # Display a popup to the user
@@ -157,7 +113,7 @@ def perform_network_scan():
     # Write data to file.
     output_to_json(file_path_network, json_metadata, network_output)
 
-    return network_output
+    return (network_output, file_path_network)
 
 
 # Gather information about password files that could be on the user's system.
@@ -175,7 +131,7 @@ def perform_password_scan():
     # Write data to file.
     output_to_json(file_path_password, json_metadata, suspect_files)
 
-    return suspect_files
+    return (suspect_files, file_path_password)
 
 
 # Gather information about running services.
@@ -199,7 +155,7 @@ def perform_service_scan():
     # Write data to file
     output_to_json(file_path_services, json_metadata, services_json_ready)
 
-    return services_json_ready
+    return (services_json_ready, file_path_services)
 
 
 # Gather password expiry information
@@ -221,7 +177,7 @@ def perform_password_expiry_scan():
 
     export_to_json2(file_path_password_policy, dict(zip(password_expiry_header, password_expiry_data)))
 
-    return password_expiry_data
+    return (password_expiry_data, file_path_password_policy)
 
 
 # Gather NIC information
@@ -239,123 +195,7 @@ def perform_network_card_gather():
 
     output_to_json(file_path_network_card, json_header, ip_addresses)
 
-    return ip_addresses
-
-
-# Load a json-formatted report
-def load_json_file(filename):
-    with open(filename) as file:
-        data = json.loads(file.read())
-    return data
-
-
-def get_network_score():
-    # List of blacklisted ports
-    blacklisted_ports = [456, 555, 666, 1001, 1011, 1170, 1234, 1243, 1245, 1492, 1600, 1807, 1981, 2001, 2023, 2115,
-                         2140, 2801, 3024, 3129, 3150, 3700, 4092, 4567, 4590, 5000, 5001, 5321, 5400, 5401, 5402, 5569,
-                         5742, 6670, 6600, 6771, 6969, 7000, 7300, 7301, 7306, 7307, 7308, 7789, 8787, 9872, 9873, 9874,
-                         9875,
-                         9989, 10067, 10167, 10607, 11000, 11223, 12223, 12345, 12346, 12361, 12362, 16969, 20001,
-                         20034,
-                         21544, 22222, 23456, 26274, 30100, 30101, 30102, 31337, 31338, 31339, 31666, 33333, 34324,
-                         40412, 40422, 40423, 40426, 47262, 50505, 50766, 53001, 54321, 61466, 65000]
-
-    # Initialize an array for found ports
-    found_ports = []
-
-    # Load the network JSON file
-    network_report = load_json_file(file_path_network)
-
-    # Loop through the found ports
-    for element in network_report[file_path_network]:
-
-        # Using the 'Name' as the key, get the corresponding value
-        port = (str(element['NAME']).split(":")[1])
-
-        # If the value is numeric, convert to integer for comparison
-        if port.isnumeric():
-            port = int(port)
-        else:
-            continue
-
-        # Append port to list of found ports
-        if port in blacklisted_ports and port not in found_ports:
-            found_ports.append(port)
-
-    # For each port found, do something with the score
-    return (len(blacklisted_ports) - len(found_ports)) / len(blacklisted_ports) * 100
-
-
-def get_network_card_score():
-    # Load the NIC JSON file
-    network_card_report = load_json_file(file_path_network_card)
-    ip_addresses = []
-    private_addresses = []
-
-    # Look at each network interface
-    for element in network_card_report[file_path_network_card]:
-
-        # Parse IP Addresses. Ignore IPv6
-        if ':' not in element['IP']:
-            ip_addresses.append(str(element['IP']))
-
-    # Parse for RFC1918
-    for element in ip_addresses:
-        try:
-            ip = ipaddress.IPv4Address(element)
-        except ValueError:
-            continue
-
-        if ip.is_private:
-            private_addresses.append(str(ip))
-
-    return (len(ip_addresses) - len(private_addresses)) / len(ip_addresses) * 100
-
-
-def get_password_score():
-    password_suspect_report = load_json_file(file_path_password)
-
-    return 100 / (len(password_suspect_report[file_path_password]) + 1)
-
-
-def get_password_policy_score():
-    password_policy_report = load_json_file(file_path_password_policy)
-    maximum_number_of_days_between_password_change = ""
-
-    # Determine days since password rotation
-    for element in password_policy_report[file_path_password_policy]:
-        maximum_number_of_days_between_password_change = element['Maximum_number_of_days_between_password_change']
-
-    # If rotation has been configured, add a point.
-    if maximum_number_of_days_between_password_change != "99999":
-        return 1
-    else:
-        return 0
-
-
-def get_service_score():
-    service_report = load_json_file(file_path_services)
-    known_services = []
-
-    for element in service_report[file_path_services]:
-        if element['status'] != '?':
-            known_services.append(element)
-
-    return 100 - (len(service_report[file_path_services]) - len(known_services)) / len(
-        service_report[file_path_services])
-
-
-# Generate the user's score based on each report
-def generate_score():
-    number_of_tests = 5
-    network_score = get_network_score()
-    network_card_score = get_network_card_score()
-    password_score = get_password_score()
-    password_policy_score = get_password_policy_score()
-    service_score = get_service_score()
-    return (
-                       network_score + network_card_score + password_score + password_policy_score + service_score) / number_of_tests
-
+    return (ip_addresses, file_path_network_card)
 
 # Display message when scan is complete.
 def display_score(score):
@@ -411,7 +251,7 @@ def run_audit(root):
     network_scan_result = perform_network_scan()
 
     # Scan the home directory for files containing password information.
-    password_scan_result = perform_password_scan()
+    #password_scan_result = perform_password_scan()
 
     # Gather information about running services.
     service_scan_result = perform_service_scan()
@@ -426,12 +266,12 @@ def run_audit(root):
     display_completion_message(root, label_loading)
 
     # Generate score
-    score = int(generate_score())
+    score = int(generate_score(file_path_network, file_path_network_card, file_path_password, file_path_password_policy, file_path_services))
 
     # Generate a report with the results.
     generate_report(file_path_audit_directory, **{
         audit_type_network: network_scan_result,
-        audit_type_password: password_scan_result,
+        #audit_type_password: password_scan_result,
         audit_type_services: service_scan_result,
         audit_type_password_policy: password_expiry_scan_result,
         audit_type_network_card: network_card_gather_result
