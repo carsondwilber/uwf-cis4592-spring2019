@@ -201,23 +201,33 @@ def perform_network_card_gather():
 def display_score(score):
     # Calculate Letter Grade
     if score >= 90:
-        letter_grade = 'A'
+        letter_grade = 'A+'
     elif 90 > score >= 80:
-        letter_grade = 'B'
+        letter_grade = 'A-'
     elif 80 > score >= 70:
-        letter_grade = 'C'
+        letter_grade = 'B+'
     elif 70 > score >= 60:
-        letter_grade = 'D'
-    else:
-        letter_grade = 'F'
+        letter_grade = 'B-'
+    elif 60 > score >= 50:
+    	letter_grade = 'C+'
+    elif 50 > score >= 40:
+    	letter_grade = 'C-'
+    elif 40 > score >= 30:
+    	letter_grade = 'D+'
+    elif 30 > score >= 20:
+    	letter_grade = 'D-'
+    elif 20 > score >= 0:
+    	letter_grade = 'F'
 
+    # Place Messages in Window
     score_report_title = "Score Report"
     score_report_message1 = "Your overall security score is:"
     score_report_message2 = "To see a more detailed breakdown of your grade,\nview the " \
                             "full report on your desktop.\n\nThanks for using Accessible Audit!"
 
+    # Build the window
     build_popup_score(score_report_title, score_report_message1, letter_grade, score_report_message2)
-
+    
 
 # Display the 'scan in progress' message.
 def display_loading_message(root):
